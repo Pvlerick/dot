@@ -1,0 +1,134 @@
+#!/bin/bash
+
+readonly VERSION="0.0.1"
+readonly LOGS_LOCATION="/var/log/docker.log"
+
+function usage() {
+    local bold=$(tput bold)
+    local normal=$(tput sgr0)
+    cat<<USAGE
+
+${bold}NAME${normal}
+
+    ${bold}dot${normal} is a dockerd utility for WSL (Windows Subsystem for Linux)
+
+
+${bold}COMMON USAGE${normal}
+
+    dot ${bold}start${normal} [ipaddress] [port]
+            Start the dockerd daemon on the given ipaddress and port (defaults are eth0 and 2375) - you'll probably need to sudo this one
+
+    dot ${bold}stop${normal}
+            Stop the dockerd daemon - you'll probably need to sudo this one
+
+    dot ${bold}logs${normal}
+            See the dockerd daemon logs
+
+    dot ${bold}status${normal}
+            See if the dockerd daemon is running or not 
+
+    dot ${bold}envvar${normal}
+            Get the command to set the DOCKER_HOST variable in the current terminal
+
+    dot ${bold}-h${normal}|${bold}--help${normal}|${bold}help${normal}
+            This help
+
+    dot ${bold}-v${normal}|${bold}--version${normal}|${bold}version${normal}
+            Show version
+
+${bold}STATUS${normal}
+
+    dot ${bold}status${normal}
+            Get informations about docker
+USAGE
+}
+
+function version(){
+  echo "$VERSION"
+}
+
+function _get_host_ip(){
+  echo `ifconfig eth0 | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}" | grep -v 127.0.0.1 | awk '{ print $2 }' | cut -f2 -d:`
+}
+
+function start(){
+  local pid=$(pidof dockerd)
+
+  if [ ! -n "$pid" ]; then
+    dockerd -H $1:$2 &> $LOGS_LOCATION &
+  fi
+}
+
+function stop(){
+  local pid=$(pidof dockerd)
+
+  if [ -n "$pid" ]; then
+    kill ${pid}
+  fi
+}
+
+function logs(){
+  cat $LOGS_LOCATION
+}
+
+function status(){
+  local pid=$(pidof dockerd)
+
+  if [ -n "$pid" ]; then
+    echo "dockerd is running (pid: ${pid})"
+  else
+    echo "dockerd is not running"
+  fi
+}
+
+function get_docker_host_variable(){
+  local pid=$(pidof dockerd)
+
+  if [ -n "$pid" ]; then
+    local endpoint=$(ps -eo args | grep [d]ockerd | awk '{ print $3 }')
+    echo "export DOCKER_HOST=$endpoint"
+  else
+    echo "error: dockerd is not running"
+  fi
+}
+
+function main(){
+  [ $# -lt 1 ] && usage && exit 1
+
+  local verb=$1
+  local address=${2:-$(_get_host_ip)}
+  local port=${3:-2375}
+
+  if [ "$verb" == "-h" ] || [ "$verb" == "help" ] || [ "$verb" == "--help" ]; then
+     usage
+     exit 0
+  fi
+  if [ "$verb" == "-v" ] || [ "$verb" == "version" ] || [ "$verb" == "--version" ]; then
+     version
+     exit 0
+  fi
+
+  case $verb in
+    status)
+      status
+      ;;
+    start)
+      start $address $port
+      ;;
+    stop)
+      stop
+      ;;
+    logs)
+      logs
+      ;;
+    envvar)
+      get_docker_host_variable
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main $@
