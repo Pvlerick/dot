@@ -5,7 +5,7 @@ DST = /usr/bin/
 
 install:
 	cp -f dot ${DST}
-	chmod +x ${DSL}dot
+	chmod +x ${DST}dot
 
 clean:
 	rm ${DST}dot
