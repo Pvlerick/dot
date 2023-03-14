@@ -55,7 +55,7 @@ function start(){
   local pid=$(pidof dockerd)
 
   if [ ! -n "$pid" ]; then
-    dockerd -H $1:$2 &> $LOGS_LOCATION &
+    dockerd -H $1:$2 --live-restore &> $LOGS_LOCATION &
   fi
 }
 
